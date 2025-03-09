@@ -16,5 +16,15 @@ export type Movie =   {
   vote_average: number,
   vote_count: number
 }
+export interface MovieCastMemberQueryParams {
+  movieId: string;    
+  actorName?: string;  
+  roleName?: string;   
+}
 
- 
+export type MovieCast = {
+  movieId: number;
+  actorName: string;
+  roleName: string;
+  roleDescription: string;
+};
