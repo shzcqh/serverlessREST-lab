@@ -1,7 +1,7 @@
 import { APIGatewayProxyHandlerV2 } from "aws-lambda";
 
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
-import { DynamoDBDocumentClient, GetCommand } from "@aws-sdk/lib-dynamodb";
+import { DynamoDBDocumentClient, GetCommand,QueryCommand, QueryCommandInput, } from "@aws-sdk/lib-dynamodb";
 
 const ddbDocClient = createDDbDocClient();
 
@@ -25,7 +25,9 @@ export const handler: APIGatewayProxyHandlerV2 = async (event, context) => {
         body: JSON.stringify({ Message: "Missing movie Id" }),
       };
     }
-
+    const castQueryParam = event.queryStringParameters?.cast || "";
+    const includeCast = castQueryParam.toLowerCase() === "true";
+    let castData: any[] = [];
     const commandOutput = await ddbDocClient.send(
       new GetCommand({
         TableName: process.env.TABLE_NAME,
@@ -42,8 +44,28 @@ export const handler: APIGatewayProxyHandlerV2 = async (event, context) => {
         body: JSON.stringify({ Message: "Invalid movie Id" }),
       };
     }
+    if (includeCast) {
+      const castTableName = process.env.MOVIE_CAST_TABLE_NAME ?? "MovieCast";
+      const castCommandInput: QueryCommandInput = {
+        TableName: castTableName,
+        KeyConditionExpression: "movieId = :m",
+        ExpressionAttributeValues: {
+          ":m": movieId,
+        },
+      };
+
+      
+      const castCommandOutput = await ddbDocClient.send(
+        new QueryCommand(castCommandInput)
+      );
+      console.log("QueryCommand response (Cast): ", castCommandOutput);
+
+      castData = castCommandOutput.Items || [];
+    }
+
     const body = {
       data: commandOutput.Item,
+      ...(includeCast ? { cast: castData } : {}),
     };
 
     // Return Response
